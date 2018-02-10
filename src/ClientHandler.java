@@ -9,6 +9,7 @@
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 
 /**
  *
@@ -18,4 +19,6 @@ public interface ClientHandler extends Remote{
     public void printMessage(String message) throws RemoteException;
     public String getUsername() throws RemoteException;
     public void kickClient() throws RemoteException;
+    public void addUserToList(String s) throws RemoteException;
+    public void deleteUserFromList(String s) throws RemoteException;
 }

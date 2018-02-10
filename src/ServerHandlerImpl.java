@@ -45,11 +45,11 @@ public class ServerHandlerImpl implements ServerHandler {
     @Override
     public boolean connect(ClientHandler client) throws RemoteException {
         if (!usernameIsTaken(client.getUsername())){
-            String formatted_message = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + client.getUsername() + " has joined.";
             
-            messageHandler(client, formatted_message);
+            addUser(client);
             
-            clientList.add(client);
+            sendInfoMessage(client, client.getUsername() + " has joined.");
+            
             // TODO: limit client maximum ? Check if client is banned ?
             return true;
         } else {
@@ -60,24 +60,34 @@ public class ServerHandlerImpl implements ServerHandler {
     
     @Override
     public boolean disconnect(ClientHandler client) throws RemoteException {
-        String formatted_message = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + client.getUsername() + " has left.";
-       
-        messageHandler(client, formatted_message);
+        sendInfoMessage(client, client.getUsername() + " has left.");
         
-        clientList.remove(client);
+        removeUser(client);
+        
         return true;
     }
     
     @Override
     public boolean sendMessage(ClientHandler client, String message) throws RemoteException {
-        String formatted_message = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + client.getUsername() + ": " + message;
+        String formattedLogMessage = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + client.getUsername() +": " + message ;
         
-        messageList.add(formatted_message);
-        writeToLogs(formatted_message);
-        System.out.println(formatted_message);
-        
+        writeToLogs(formattedLogMessage);
+        System.out.println(formattedLogMessage);
+        messageList.add(formattedLogMessage);
         for (ClientHandler currentClient : clientList) {
-                currentClient.printMessage(formatted_message);
+            currentClient.printMessage(formattedLogMessage);
+        }
+        return true;
+    }
+    
+    public boolean sendInfoMessage(ClientHandler client, String message) throws RemoteException {
+        String formattedLogMessage = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + message ;
+        
+        writeToLogs(formattedLogMessage);
+        System.out.println(formattedLogMessage);
+        messageList.add(formattedLogMessage);
+        for (ClientHandler currentClient : clientList) {
+            currentClient.printMessage(formattedLogMessage);
         }
         return true;
     }
@@ -96,6 +106,7 @@ public class ServerHandlerImpl implements ServerHandler {
     }
     
     private void writeToLogs(String message){
+        // FIXME: les logs ne sont pas écrit correctement
         message += "\n";
         try {
             logFileWriter.write(message);
@@ -118,19 +129,18 @@ public class ServerHandlerImpl implements ServerHandler {
         
         return usernames;
     }
-
+    
     @Override
     public ArrayList<String> getAllHistory() throws RemoteException {
+        // FIXME : plusieurs getAllHistory renvoie un historique vide
         ArrayList<String> fullHistory = new ArrayList<>();
-        fullHistory.ensureCapacity(50000);
         try {
             BufferedReader b = new BufferedReader(logFileReader);
             String line;
             while ((line = b.readLine()) != null){
                 fullHistory.add(line);
-                System.out.println("fullHistory size: " + fullHistory.size());
             }
-                
+            
         } catch (IOException ex) {
             Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -138,11 +148,31 @@ public class ServerHandlerImpl implements ServerHandler {
         return fullHistory;
     }
     
-    private void messageHandler(ClientHandler client, String formatted_message) throws RemoteException{
-        sendMessage(client, formatted_message);
+    private void addUser(ClientHandler client){        
+        for (ClientHandler c : clientList){
+            try {
+                c.addUserToList(client.getUsername());
+            } catch (RemoteException ex) {
+                Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("Unable to join client, deleting him...");
+                clientList.remove(c);
+            }
+        }
         
-        System.out.println(formatted_message);
-        messageList.add(formatted_message);
-        writeToLogs(formatted_message);
+        clientList.add(client);
+    }
+    
+    private void removeUser (ClientHandler client){
+        for (ClientHandler c : clientList){
+            try {
+                c.deleteUserFromList(client.getUsername());
+            } catch (RemoteException ex) {
+                Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                System.out.println("Unable to join client, deleting him...");
+                clientList.remove(c);
+            }
+        }
+        
+        clientList.remove(client);
     }
 }

@@ -46,15 +46,17 @@ public class GUI_Chat extends Application{
     
     private static enum ApplicationState {LOGON_SCREEN, CHAT_SCREEN};
     private static ApplicationState currentState;
-    private static String versionString = "0.1";
+    private static String versionString = "0.2";
     private static Stage mainStage;
     
     private static Label errorLabel;
     private static TextField usernameTextField;
     private static TextField serverIPTextField;
     private static TextArea chatTextArea;
+    private static ListView chatUserListView;
     
-    private static ObservableList<String> observableMessagesList;
+    private static ObservableList<String> messagesList;
+    private static ObservableList<String> userList;
     
     private static ServerHandler serverHandler;
     private static ClientHandler client_stub;
@@ -149,7 +151,23 @@ public class GUI_Chat extends Application{
     
     private static BorderPane createChatUserListPane(){
         BorderPane chatUserListPane = new BorderPane();
-        ListView chatUserListView = new ListView();
+        chatUserListView = new ListView(userList);
+        userList.addListener(new ListChangeListener<String>() {
+            @Override
+            public void onChanged(ListChangeListener.Change<? extends String> c) {
+                while (c.next()) {
+                    if (c.wasAdded()) {
+                        for (String s : c.getAddedSubList()) {
+                            chatUserListView.getItems().add(s);
+                        }
+                    } else if (c.wasRemoved()) {
+                        for (String s : c.getRemoved()) {
+                            chatUserListView.getItems().remove(s);
+                        }
+                    }
+                }
+            }
+        });
         
         chatUserListPane.setCenter(chatUserListView);
         
@@ -183,10 +201,9 @@ public class GUI_Chat extends Application{
         BorderPane guiChatClient = new BorderPane();
         chatTextArea = new TextArea();
         chatTextArea.setEditable(false);
-        observableMessagesList.addListener(new ListChangeListener<String>() {
+        messagesList.addListener(new ListChangeListener<String>() {
             @Override
             public void onChanged(ListChangeListener.Change<? extends String> c) {
-                
                 while (c.next()) {
                     if (c.wasAdded()){
                         for (String s : c.getAddedSubList()) {
@@ -243,8 +260,9 @@ public class GUI_Chat extends Application{
     
     private static void login() {
         try{
-            observableMessagesList = FXCollections.observableArrayList();
-            ClientHandlerImpl client = new ClientHandlerImpl(usernameTextField.getText(), observableMessagesList);
+            messagesList = FXCollections.observableArrayList();
+            userList = FXCollections.observableArrayList();
+            ClientHandlerImpl client = new ClientHandlerImpl(usernameTextField.getText(), messagesList, userList);
             client_stub = (ClientHandler) UnicastRemoteObject.exportObject(client, 0);
             
 // Get remote object reference
@@ -256,6 +274,14 @@ try {
 }
 
 if (serverHandler.connect(client_stub) == true){
+    
+    // Obtaining user list
+    ArrayList<String> users = serverHandler.getConnectedUsers();
+        
+    if (!users.isEmpty()){
+        userList.addAll(users);
+    }
+    // Creating main interface
     Scene scene = new Scene(createGUIChatClient());
     mainStage.setScene(scene);
     Rectangle2D screenRectangle = Screen.getPrimary().getVisualBounds();
@@ -303,45 +329,45 @@ if (serverHandler.connect(client_stub) == true){
     }
     
     private static void executeCommand(String input) {
-// Remove leading /
-input = input.substring(1).toLowerCase();
-switch (input){
-    case "help":
-        printHelp();
-        break;
-    case "logout":
-    case "quit":
-        logout();
-        break;
-    case "history":
-        getHistory();
-        break;
-    case "allhistory":
-        getAllHistory();
-        break;
-    case "users":
-        getUsers();
-        break;
-    default:
-        addToMessages("Command unknown.");
-        break;
-}
+        // Remove leading
+        input = input.substring(1).toLowerCase();
+        switch (input){
+            case "help":
+                printHelp();
+                break;
+            case "logout":
+            case "quit":
+                logout();
+                break;
+            case "history":
+                getHistory();
+                break;
+            case "allhistory":
+                getAllHistory();
+                break;
+            case "users":
+                getUsers();
+                break;
+            default:
+                addToMessages("Command unknown.");
+                break;
+        }
     }
     
     private static void addToMessages(String s){
-        observableMessagesList.add(s);
+        messagesList.add(s);
     }
     
     private static void addToMessages(ArrayList<String> list){
-        observableMessagesList.addAll(list);
+        messagesList.addAll(list);
     }
     
     private static void printHelp() {
         addToMessages("RMI Chat V" + versionString);
         addToMessages("Commands :");
-        addToMessages("/help\tPrint this message.");
+        addToMessages("/help\t\tPrint this message.");
         addToMessages("/logout\tDisconnect the client and exit.");
-        addToMessages("/quit\tDisconnect the client and exit.");
+        addToMessages("/quit\t\tDisconnect the client and exit.");
         addToMessages("/history\tGet the server session message history.");
         addToMessages("/allhistory\tGet the server complete message history.");
         addToMessages("/users\tGet current user list.");
@@ -366,10 +392,10 @@ switch (input){
         try {
             users = serverHandler.getConnectedUsers();
             
-            for (String user : users){
-                addToMessages(user);
+            if (!users.isEmpty()){
+                userList.addAll(users);
             }
-            addToMessages("");
+            
         } catch (RemoteException ex) {
             addToMessages("Unable to get user list.");
             addToMessages(ex.getMessage());
