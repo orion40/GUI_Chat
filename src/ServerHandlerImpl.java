@@ -46,9 +46,9 @@ public class ServerHandlerImpl implements ServerHandler {
     public boolean connect(ClientHandler client) throws RemoteException {
         if (!usernameIsTaken(client.getUsername())){
             String formatted_message = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + client.getUsername() + " has joined.";
-            System.out.println(formatted_message);
-            messageList.add(formatted_message);
-            writeToLogs(formatted_message);
+            
+            messageHandler(client, formatted_message);
+            
             clientList.add(client);
             // TODO: limit client maximum ? Check if client is banned ?
             return true;
@@ -61,9 +61,9 @@ public class ServerHandlerImpl implements ServerHandler {
     @Override
     public boolean disconnect(ClientHandler client) throws RemoteException {
         String formatted_message = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + client.getUsername() + " has left.";
-        System.out.println(formatted_message);
-        messageList.add(formatted_message);
-        writeToLogs(formatted_message);
+       
+        messageHandler(client, formatted_message);
+        
         clientList.remove(client);
         return true;
     }
@@ -71,11 +71,12 @@ public class ServerHandlerImpl implements ServerHandler {
     @Override
     public boolean sendMessage(ClientHandler client, String message) throws RemoteException {
         String formatted_message = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + client.getUsername() + ": " + message;
+        
         messageList.add(formatted_message);
         writeToLogs(formatted_message);
         System.out.println(formatted_message);
+        
         for (ClientHandler currentClient : clientList) {
-            if (!currentClient.equals(client))
                 currentClient.printMessage(formatted_message);
         }
         return true;
@@ -135,5 +136,13 @@ public class ServerHandlerImpl implements ServerHandler {
         }
         
         return fullHistory;
+    }
+    
+    private void messageHandler(ClientHandler client, String formatted_message) throws RemoteException{
+        sendMessage(client, formatted_message);
+        
+        System.out.println(formatted_message);
+        messageList.add(formatted_message);
+        writeToLogs(formatted_message);
     }
 }

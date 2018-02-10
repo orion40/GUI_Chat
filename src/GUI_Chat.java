@@ -7,12 +7,14 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Observable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Application;
 import static javafx.application.Application.launch;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -27,7 +29,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 
@@ -51,8 +52,9 @@ public class GUI_Chat extends Application{
     private static Label errorLabel;
     private static TextField usernameTextField;
     private static TextField serverIPTextField;
-    //private static TextField chatPromptText;
-    private static ArrayList<String> messageList = new ArrayList<>();
+    private static TextArea chatTextArea;
+    
+    private static ObservableList<String> observableMessagesList;
     
     private static ServerHandler serverHandler;
     private static ClientHandler client_stub;
@@ -76,7 +78,7 @@ public class GUI_Chat extends Application{
         });
         
         serverIPTextField.setOnAction((ActionEvent) -> {
-            logon();
+            login();
         });
         
         loginTextFieldsPane.setTop(usernameTextField);
@@ -105,7 +107,7 @@ public class GUI_Chat extends Application{
         });
         
         connectButton.setOnAction((ActionEvent t) -> {
-            logon();
+            login();
         });
         
         loginButtonPane.setLeft(cancelButton);
@@ -159,9 +161,17 @@ public class GUI_Chat extends Application{
         TextField chatPromptText = new TextField();
         Button sendMessageButton = new Button("Send");
         
+        chatPromptText.setOnAction((ActionEvent t) -> {
+            parseInput(chatPromptText.getText());
+            chatPromptText.clear();
+        });
+        
         sendMessageButton.setOnAction((ActionEvent t) -> {
             parseInput(chatPromptText.getText());
+            chatPromptText.clear();
         });
+        
+        chatPromptText.requestFocus();
         
         chatPromptPane.setCenter(chatPromptText);
         chatPromptPane.setRight(sendMessageButton);
@@ -171,10 +181,21 @@ public class GUI_Chat extends Application{
     
     private static BorderPane createGUIChatClient(){
         BorderPane guiChatClient = new BorderPane();
-        TextArea chatTextArea = new TextArea();
-        /*ObservableList<String> observableMessagesList = FXCollections.observableArrayList(
-        messageList -> new Observable[]{messageList.get(0)}
-        );*/
+        chatTextArea = new TextArea();
+        chatTextArea.setEditable(false);
+        observableMessagesList.addListener(new ListChangeListener<String>() {
+            @Override
+            public void onChanged(ListChangeListener.Change<? extends String> c) {
+                
+                while (c.next()) {
+                    if (c.wasAdded()){
+                        for (String s : c.getAddedSubList()) {
+                            displayMessages(s);
+                        }
+                    }
+                }
+            }
+        });
         
         guiChatClient.setTop(createChatMenuPane());
         guiChatClient.setCenter(chatTextArea);
@@ -182,6 +203,10 @@ public class GUI_Chat extends Application{
         guiChatClient.setBottom(createChatPromptPane());
         
         return guiChatClient;
+    }
+    
+    private static void displayMessages(String s){
+        chatTextArea.appendText(s+ "\n");
     }
     
     /**
@@ -216,34 +241,33 @@ public class GUI_Chat extends Application{
     }
     
     
-    private static void logon() {
-        try {
-            ClientHandlerImpl client = new ClientHandlerImpl(usernameTextField.getText(), messageList);
+    private static void login() {
+        try{
+            observableMessagesList = FXCollections.observableArrayList();
+            ClientHandlerImpl client = new ClientHandlerImpl(usernameTextField.getText(), observableMessagesList);
             client_stub = (ClientHandler) UnicastRemoteObject.exportObject(client, 0);
             
-            // Get remote object reference
-            Registry registry = LocateRegistry.getRegistry(serverIPTextField.getText());
-            try {
-                serverHandler = (ServerHandler) registry.lookup("ServerHandler");
-            } catch (NotBoundException ex) {
-                Logger.getLogger(GUI_Chat.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (AccessException ex) {
-                Logger.getLogger(GUI_Chat.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            
-            if (serverHandler.connect(client_stub) == true){
-                Scene scene = new Scene(createGUIChatClient());
-                mainStage.setScene(scene);
-                Rectangle2D screenRectangle = Screen.getPrimary().getVisualBounds();
-                mainStage.setX((screenRectangle.getWidth() - mainStage.getWidth()) / 2);
-                mainStage.setY((screenRectangle.getHeight() - mainStage.getHeight()) / 2);
-                
-                currentState = ApplicationState.CHAT_SCREEN;
-                
-            } else {
-                errorLabel.setText("Unable to connect.");
-            }
-            
+// Get remote object reference
+Registry registry = LocateRegistry.getRegistry(serverIPTextField.getText());
+try {
+    serverHandler = (ServerHandler) registry.lookup("ServerHandler");
+} catch (NotBoundException | AccessException ex) {
+    Logger.getLogger(GUI_Chat.class.getName()).log(Level.SEVERE, null, ex);
+}
+
+if (serverHandler.connect(client_stub) == true){
+    Scene scene = new Scene(createGUIChatClient());
+    mainStage.setScene(scene);
+    Rectangle2D screenRectangle = Screen.getPrimary().getVisualBounds();
+    mainStage.setX((screenRectangle.getWidth() - mainStage.getWidth()) / 2);
+    mainStage.setY((screenRectangle.getHeight() - mainStage.getHeight()) / 2);
+    
+    currentState = ApplicationState.CHAT_SCREEN;
+    
+} else {
+    errorLabel.setText("Unable to connect.");
+}
+
         } catch (RemoteException ex) {
             errorLabel.setText("Unable to connect.");
         }
@@ -279,40 +303,48 @@ public class GUI_Chat extends Application{
     }
     
     private static void executeCommand(String input) {
-        // Remove leading /
-        input = input.substring(1).toLowerCase();
-        switch (input){
-            case "help":
-                printHelp();
-                break;
-            case "logout":
-            case "quit":
-                logout();
-                break;
-            case "history":
-                getHistory();
-                break;
-            case "allhistory":
-                getAllHistory();
-                break;
-            case "users":
-                getUsers();
-                break;
-            default:
-                System.out.println("Command unknown.");
-                break;
-        }
+// Remove leading /
+input = input.substring(1).toLowerCase();
+switch (input){
+    case "help":
+        printHelp();
+        break;
+    case "logout":
+    case "quit":
+        logout();
+        break;
+    case "history":
+        getHistory();
+        break;
+    case "allhistory":
+        getAllHistory();
+        break;
+    case "users":
+        getUsers();
+        break;
+    default:
+        addToMessages("Command unknown.");
+        break;
+}
+    }
+    
+    private static void addToMessages(String s){
+        observableMessagesList.add(s);
+    }
+    
+    private static void addToMessages(ArrayList<String> list){
+        observableMessagesList.addAll(list);
     }
     
     private static void printHelp() {
-        System.out.println("RMI Chat V" + versionString);
-        System.out.println("Commands :");
-        System.out.println("/help\tPrint this message.");
-        System.out.println("/logout\tDisconnect the client and exit.");
-        System.out.println("/quit\tDisconnect the client and exit.");
-        System.out.println("/history\tGet the server session message history.");
-        System.out.println("/allhistory\tGet the server complete message history.");
-        System.out.println("/users\tGet current user list.");
+        addToMessages("RMI Chat V" + versionString);
+        addToMessages("Commands :");
+        addToMessages("/help\tPrint this message.");
+        addToMessages("/logout\tDisconnect the client and exit.");
+        addToMessages("/quit\tDisconnect the client and exit.");
+        addToMessages("/history\tGet the server session message history.");
+        addToMessages("/allhistory\tGet the server complete message history.");
+        addToMessages("/users\tGet current user list.");
     }
     
     private static void getHistory() {
@@ -321,11 +353,11 @@ public class GUI_Chat extends Application{
             history = serverHandler.getHistory();
             
             for (String line : history){
-                System.out.println(line);
+                addToMessages(line);
             }
-            System.out.println("");
+            addToMessages("");
         } catch (RemoteException ex) {
-            System.out.println("Unable to get history.");
+            addToMessages("Unable to get history.");
         }
     }
     
@@ -335,12 +367,12 @@ public class GUI_Chat extends Application{
             users = serverHandler.getConnectedUsers();
             
             for (String user : users){
-                System.out.println(user);
+                addToMessages(user);
             }
-            System.out.println("");
+            addToMessages("");
         } catch (RemoteException ex) {
-            System.out.println("Unable to get user list.");
-            System.out.println(ex.getMessage());
+            addToMessages("Unable to get user list.");
+            addToMessages(ex.getMessage());
         }
     }
     
@@ -350,12 +382,12 @@ public class GUI_Chat extends Application{
             history = serverHandler.getAllHistory();
             
             for (String line : history){
-                System.out.println(line);
+                addToMessages(line);
             }
-            System.out.println("");
+            addToMessages("");
         } catch (RemoteException ex) {
-            System.out.println("Unable to get history.");
-            System.out.println(ex.getMessage());
+            addToMessages("Unable to get history.");
+            addToMessages(ex.getMessage());
         }
     }
     

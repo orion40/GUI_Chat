@@ -8,17 +8,15 @@
 
 
 import java.rmi.RemoteException;
-import java.util.ArrayList;
-import java.util.Observable;
 import javafx.collections.ObservableList;
 
 
 public class ClientHandlerImpl implements ClientHandler {
     private String clientName;
     private Boolean kicked = false;
-    private ArrayList<String> messageList;
+    private ObservableList<String> messageList;
     
-    public ClientHandlerImpl(String name, ArrayList<String> list){
+    public ClientHandlerImpl(String name, ObservableList<String> list){
         clientName = name;
         messageList = list;
     }
@@ -26,6 +24,7 @@ public class ClientHandlerImpl implements ClientHandler {
     @Override
     public void printMessage(String message) throws RemoteException {
         messageList.add(message);
+        System.out.println(message);
     }
 
     @Override
