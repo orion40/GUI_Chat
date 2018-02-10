@@ -61,6 +61,11 @@ public class ServerHandlerImpl implements ServerHandler {
     
     @Override
     public boolean sendMessage(ClientHandler client, String message) throws RemoteException {
+        // Prevent empty messages and bogus messages
+        message = message.trim();
+        if (message.isEmpty())
+            return false;
+        
         String formattedLogMessage = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + client.getUsername() +": " + message ;
         
         writeToLogs(formattedLogMessage);
@@ -126,9 +131,11 @@ public class ServerHandlerImpl implements ServerHandler {
         // FIXME : plusieurs getAllHistory renvoie un historique vide
         ArrayList<String> fullHistory = new ArrayList<>();
         try {
+            logFileReader.reset();
             BufferedReader b = new BufferedReader(logFileReader);
             String line;
             while ((line = b.readLine()) != null){
+                System.out.println("Adding " + line);
                 fullHistory.add(line);
             }
             

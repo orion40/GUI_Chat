@@ -17,7 +17,9 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.event.EventType;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -28,23 +30,26 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
 
 /*
 * To change this license header, choose License Headers in Project Properties.
 * To change this template file, choose Tools | Templates
 * and open the template in the editor.
 */
-
 /**
  *
  * @author whoami
  */
-public class GUI_Chat extends Application{
+public class GUI_Chat extends Application {
     
-    private static enum ApplicationState {LOGON_SCREEN, CHAT_SCREEN};
+    private static enum ApplicationState {
+        LOGON_SCREEN, CHAT_SCREEN
+    };
     private static ApplicationState currentState;
     private static String versionString = "0.2";
     private static Stage mainStage;
@@ -54,14 +59,18 @@ public class GUI_Chat extends Application{
     private static TextField serverIPTextField;
     private static TextArea chatTextArea;
     private static ListView chatUserListView;
+    private static TextField chatPromptText;
     
     private static ObservableList<String> messagesList;
     private static ObservableList<String> userList;
     
+    private static ArrayList<String> clientMessageHistory;
+    private static int clientMessageHistoryOffset;
+    
     private static ServerHandler serverHandler;
     private static ClientHandler client_stub;
     
-    private static BorderPane createLoginLabelsPane(){
+    private static BorderPane createLoginLabelsPane() {
         BorderPane loginLabels = new BorderPane();
         
         loginLabels.setTop(new Label("Username"));
@@ -70,12 +79,12 @@ public class GUI_Chat extends Application{
         return loginLabels;
     }
     
-    private static BorderPane createLoginTextFieldsPane(){
+    private static BorderPane createLoginTextFieldsPane() {
         BorderPane loginTextFieldsPane = new BorderPane();
         usernameTextField = new TextField("toto");
         serverIPTextField = new TextField("127.0.0.1");
         
-        usernameTextField.setOnAction((ActionEvent) ->{
+        usernameTextField.setOnAction((ActionEvent) -> {
             serverIPTextField.requestFocus();
         });
         
@@ -89,7 +98,7 @@ public class GUI_Chat extends Application{
         return loginTextFieldsPane;
     }
     
-    private static BorderPane createLoginFieldsPane(){
+    private static BorderPane createLoginFieldsPane() {
         BorderPane loginFields = new BorderPane();
         
         loginFields.setLeft(createLoginLabelsPane());
@@ -98,7 +107,7 @@ public class GUI_Chat extends Application{
         return loginFields;
     }
     
-    private static BorderPane createLoginButtonsPane(){
+    private static BorderPane createLoginButtonsPane() {
         BorderPane loginButtonPane = new BorderPane();
         Button connectButton = new Button("Connect");
         Button cancelButton = new Button("Cancel");
@@ -130,7 +139,7 @@ public class GUI_Chat extends Application{
         return guiLoginClient;
     }
     
-    private static MenuBar createChatMenuPane(){
+    private static MenuBar createChatMenuPane() {
         MenuItem logoutMenuItem = new MenuItem("Logout");
         MenuItem exitMenuItem = new MenuItem("Exit");
         Menu fileMenu = new Menu("File");
@@ -149,7 +158,7 @@ public class GUI_Chat extends Application{
         return menuBar;
     }
     
-    private static BorderPane createChatUserListPane(){
+    private static BorderPane createChatUserListPane() {
         BorderPane chatUserListPane = new BorderPane();
         chatUserListView = new ListView(userList);
         userList.addListener(new ListChangeListener<String>() {
@@ -174,22 +183,47 @@ public class GUI_Chat extends Application{
         return chatUserListPane;
     }
     
-    private static BorderPane createChatPromptPane(){
+    private static BorderPane createChatPromptPane() {
         BorderPane chatPromptPane = new BorderPane();
-        TextField chatPromptText = new TextField();
         Button sendMessageButton = new Button("Send");
-        
-        chatPromptText.setOnAction((ActionEvent t) -> {
-            parseInput(chatPromptText.getText());
-            chatPromptText.clear();
-        });
+        chatPromptText = new TextField();
         
         sendMessageButton.setOnAction((ActionEvent t) -> {
             parseInput(chatPromptText.getText());
             chatPromptText.clear();
         });
         
-        chatPromptText.requestFocus();
+        // Handle chat history
+        chatPromptText.addEventHandler(KeyEvent.KEY_PRESSED, new EventHandler<KeyEvent>() {
+            @Override
+            public void handle(KeyEvent t) {
+                switch (t.getCode()) {
+                    case UP:
+                        if (clientMessageHistoryOffset < clientMessageHistory.size()){
+                            clientMessageHistoryOffset++;
+                        }
+                        if (!clientMessageHistory.isEmpty() && clientMessageHistoryOffset > 0){
+                            chatPromptText.setText(clientMessageHistory.get(clientMessageHistory.size() - clientMessageHistoryOffset));
+                        }
+                        break;
+                    case DOWN:
+                        if (clientMessageHistoryOffset >= 0){
+                            clientMessageHistoryOffset--;
+                        }
+                        if (!clientMessageHistory.isEmpty() && clientMessageHistoryOffset > 0){
+                            chatPromptText.setText(clientMessageHistory.get(clientMessageHistory.size() - clientMessageHistoryOffset));
+                        } else if (clientMessageHistoryOffset == 0){
+                            // TODO: put text that was here in a buffer and return to it
+                            chatPromptText.setText("");
+                        }
+                        break;
+                    case ENTER:
+                        parseInput(chatPromptText.getText());
+                        chatPromptText.clear();
+                        break;
+                }
+            }
+        });
         
         chatPromptPane.setCenter(chatPromptText);
         chatPromptPane.setRight(sendMessageButton);
@@ -197,7 +231,7 @@ public class GUI_Chat extends Application{
         return chatPromptPane;
     }
     
-    private static BorderPane createGUIChatClient(){
+    private static BorderPane createGUIChatClient() {
         BorderPane guiChatClient = new BorderPane();
         chatTextArea = new TextArea();
         chatTextArea.setEditable(false);
@@ -205,7 +239,7 @@ public class GUI_Chat extends Application{
             @Override
             public void onChanged(ListChangeListener.Change<? extends String> c) {
                 while (c.next()) {
-                    if (c.wasAdded()){
+                    if (c.wasAdded()) {
                         for (String s : c.getAddedSubList()) {
                             displayMessages(s);
                         }
@@ -222,8 +256,8 @@ public class GUI_Chat extends Application{
         return guiChatClient;
     }
     
-    private static void displayMessages(String s){
-        chatTextArea.appendText(s+ "\n");
+    private static void displayMessages(String s) {
+        chatTextArea.appendText(s + "\n");
     }
     
     /**
@@ -234,7 +268,7 @@ public class GUI_Chat extends Application{
     }
     
     @Override
-    public void start(Stage primaryStage){
+    public void start(Stage primaryStage) {
         mainStage = primaryStage;
         currentState = ApplicationState.LOGON_SCREEN;
         Scene scene = new Scene(createGUILoginClient());
@@ -244,7 +278,7 @@ public class GUI_Chat extends Application{
         primaryStage.show();
     }
     
-    private static void logout(){
+    private static void logout() {
         try {
             serverHandler.disconnect(client_stub);
         } catch (RemoteException ex) {
@@ -257,50 +291,50 @@ public class GUI_Chat extends Application{
         mainStage.setY((screenRectangle.getHeight() - mainStage.getHeight()) / 2);
     }
     
-    
     private static void login() {
-        try{
+        try {
             messagesList = FXCollections.observableArrayList();
             userList = FXCollections.observableArrayList();
             ClientHandlerImpl client = new ClientHandlerImpl(usernameTextField.getText(), messagesList, userList);
             client_stub = (ClientHandler) UnicastRemoteObject.exportObject(client, 0);
+            // Get remote object reference
+            Registry registry = LocateRegistry.getRegistry(serverIPTextField.getText());
+            try {
+                serverHandler = (ServerHandler) registry.lookup("ServerHandler");
+            } catch (NotBoundException | AccessException ex) {
+                Logger.getLogger(GUI_Chat.class.getName()).log(Level.SEVERE, null, ex);
+            }
             
-// Get remote object reference
-Registry registry = LocateRegistry.getRegistry(serverIPTextField.getText());
-try {
-    serverHandler = (ServerHandler) registry.lookup("ServerHandler");
-} catch (NotBoundException | AccessException ex) {
-    Logger.getLogger(GUI_Chat.class.getName()).log(Level.SEVERE, null, ex);
-}
-
-if (serverHandler.connect(client_stub) == true){
-    
-    // Obtaining user list
-    ArrayList<String> users = serverHandler.getConnectedUsers();
-        
-    if (!users.isEmpty()){
-        userList.addAll(users);
-    }
-    // Creating main interface
-    Scene scene = new Scene(createGUIChatClient());
-    mainStage.setScene(scene);
-    Rectangle2D screenRectangle = Screen.getPrimary().getVisualBounds();
-    mainStage.setX((screenRectangle.getWidth() - mainStage.getWidth()) / 2);
-    mainStage.setY((screenRectangle.getHeight() - mainStage.getHeight()) / 2);
-    
-    currentState = ApplicationState.CHAT_SCREEN;
-    
-} else {
-    errorLabel.setText("Unable to connect.");
-}
-
+            if (serverHandler.connect(client_stub) == true) {
+                
+                // Obtaining user list
+                ArrayList<String> users = serverHandler.getConnectedUsers();
+                clientMessageHistory = new ArrayList<>();
+                
+                if (!users.isEmpty()) {
+                    userList.addAll(users);
+                }
+                // Creating main interface
+                Scene scene = new Scene(createGUIChatClient());
+                mainStage.setScene(scene);
+                chatPromptText.requestFocus();
+                Rectangle2D screenRectangle = Screen.getPrimary().getVisualBounds();
+                mainStage.setX((screenRectangle.getWidth() - mainStage.getWidth()) / 2);
+                mainStage.setY((screenRectangle.getHeight() - mainStage.getHeight()) / 2);
+                
+                currentState = ApplicationState.CHAT_SCREEN;
+                
+            } else {
+                errorLabel.setText("Unable to connect.");
+            }
+            
         } catch (RemoteException ex) {
             errorLabel.setText("Unable to connect.");
         }
     }
     
-    private static void exit(){
-        switch (currentState){
+    private static void exit() {
+        switch (currentState) {
             case CHAT_SCREEN:
                 try {
                     serverHandler.disconnect(client_stub);
@@ -317,21 +351,25 @@ if (serverHandler.connect(client_stub) == true){
     }
     
     private static void parseInput(String input) {
-        if (input.startsWith("/")){
-            executeCommand(input);
-        }else{
-            try {
-                serverHandler.sendMessage(client_stub, input);
-            } catch (RemoteException ex) {
-                Logger.getLogger(GUI_Chat.class.getName()).log(Level.SEVERE, null, ex);
+        if (!input.isEmpty()) {
+            if (input.startsWith("/")) {
+                executeCommand(input);
+            } else {
+                try {
+                    serverHandler.sendMessage(client_stub, input);
+                } catch (RemoteException ex) {
+                    Logger.getLogger(GUI_Chat.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
+            clientMessageHistory.add(input);
+            clientMessageHistoryOffset = 0;
         }
     }
     
     private static void executeCommand(String input) {
-        // Remove leading
+        // Remove leading '/'
         input = input.substring(1).toLowerCase();
-        switch (input){
+        switch (input) {
             case "help":
                 printHelp();
                 break;
@@ -354,11 +392,11 @@ if (serverHandler.connect(client_stub) == true){
         }
     }
     
-    private static void addToMessages(String s){
+    private static void addToMessages(String s) {
         messagesList.add(s);
     }
     
-    private static void addToMessages(ArrayList<String> list){
+    private static void addToMessages(ArrayList<String> list) {
         messagesList.addAll(list);
     }
     
@@ -378,7 +416,7 @@ if (serverHandler.connect(client_stub) == true){
         try {
             history = serverHandler.getHistory();
             
-            for (String line : history){
+            for (String line : history) {
                 addToMessages(line);
             }
             addToMessages("");
@@ -392,7 +430,7 @@ if (serverHandler.connect(client_stub) == true){
         try {
             users = serverHandler.getConnectedUsers();
             
-            if (!users.isEmpty()){
+            if (!users.isEmpty()) {
                 userList.addAll(users);
             }
             
@@ -407,7 +445,7 @@ if (serverHandler.connect(client_stub) == true){
         try {
             history = serverHandler.getAllHistory();
             
-            for (String line : history){
+            for (String line : history) {
                 addToMessages(line);
             }
             addToMessages("");
