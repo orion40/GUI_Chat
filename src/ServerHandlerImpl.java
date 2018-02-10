@@ -27,19 +27,11 @@ public class ServerHandlerImpl implements ServerHandler {
     static private FileWriter logFileWriter;
     static private FileReader logFileReader;
     
-    public ServerHandlerImpl(ArrayList<ClientHandler> clients, ArrayList<String> messages, File file) {
+    public ServerHandlerImpl(ArrayList<ClientHandler> clients, ArrayList<String> messages, FileWriter fileWriter, FileReader fileReader) {
         clientList = clients;
         messageList = messages;
-        try {
-            logFileWriter = new FileWriter(file, true);
-        } catch (IOException ex) {
-            Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        try {
-            logFileReader = new FileReader(file);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        logFileWriter = fileWriter;
+        logFileReader = fileReader;
     }
     
     @Override
@@ -106,7 +98,6 @@ public class ServerHandlerImpl implements ServerHandler {
     }
     
     private void writeToLogs(String message){
-        // FIXME: les logs ne sont pas écrit correctement
         message += "\n";
         try {
             logFileWriter.write(message);
@@ -148,14 +139,16 @@ public class ServerHandlerImpl implements ServerHandler {
         return fullHistory;
     }
     
-    private void addUser(ClientHandler client){        
+    private void addUser(ClientHandler client){
         for (ClientHandler c : clientList){
-            try {
-                c.addUserToList(client.getUsername());
-            } catch (RemoteException ex) {
-                Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
-                System.out.println("Unable to join client, deleting him...");
-                clientList.remove(c);
+            if (c != client){
+                try {
+                    c.addUserToList(client.getUsername());
+                } catch (RemoteException ex) {
+                    Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
+                    System.out.println("Unable to join client, deleting him...");
+                    clientList.remove(c);
+                }
             }
         }
         
