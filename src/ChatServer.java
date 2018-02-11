@@ -12,7 +12,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -20,8 +20,6 @@ import java.rmi.server.UnicastRemoteObject;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -33,7 +31,7 @@ public class ChatServer {
     
     public static void main(String [] args) {
         boolean isRunning = true;
-        
+        // FIXME: add mutex to avoid race conditions
         clientList = new ArrayList<>();
         messageList = new ArrayList<>();
         
@@ -84,10 +82,9 @@ public class ChatServer {
         } catch (FileNotFoundException ex) {
             System.out.println("Unabled to open log file!");
             System.exit(1);
-        } catch (Exception e) {
+        } catch (IOException | AlreadyBoundException e) {
             // TODO: log errors into log file instead of outputing to stdout
             System.err.println("Error on server :" + e) ;
-            e.printStackTrace();
         }
     }
 }

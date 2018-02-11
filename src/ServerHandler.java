@@ -17,7 +17,7 @@ import java.util.ArrayList;
  */
 public interface ServerHandler extends Remote{
     public boolean connect(ClientHandler client) throws RemoteException;
-    public boolean disconnect(ClientHandler client) throws RemoteException;
+    public void disconnect(ClientHandler client) throws RemoteException;
     public boolean sendMessage(ClientHandler client, String message) throws RemoteException;
     public ArrayList<String> getHistory() throws RemoteException;
     public ArrayList<String> getAllHistory() throws RemoteException;

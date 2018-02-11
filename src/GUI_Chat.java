@@ -386,6 +386,10 @@ public class GUI_Chat extends Application {
         }
     }
 
+    /**
+     * Dispatcher for chat commands.
+     * @param input The chat command, a string with a leading '/'
+     */
     private static void executeCommand(String input) {
         // Remove leading '/'
         input = input.substring(1).toLowerCase();
@@ -412,14 +416,25 @@ public class GUI_Chat extends Application {
         }
     }
 
+    /**
+     * Add a message to the client message list.
+     * @param s The message to add.
+     */
     private static void addToMessages(String s) {
         messagesList.add(s);
     }
 
+    /**
+     * Add a message list to the client message list.
+     * @param list 
+     */
     private static void addToMessages(ArrayList<String> list) {
         messagesList.addAll(list);
     }
 
+    /**
+     * Print help messages to the client.
+     */
     private static void printHelp() {
         addToMessages("RMI Chat V" + versionString);
         addToMessages("Commands :");
@@ -431,6 +446,9 @@ public class GUI_Chat extends Application {
         addToMessages("/users\tGet current user list.");
     }
 
+    /**
+     * Obtain the current session chat history.
+     */
     private static void getHistory() {
         ArrayList<String> history;
         try {
@@ -445,6 +463,9 @@ public class GUI_Chat extends Application {
         }
     }
 
+    /**
+     * Obtain a list of all connected users.
+     */
     private static void getUsers() {
         ArrayList<String> users;
         try {
@@ -460,6 +481,9 @@ public class GUI_Chat extends Application {
         }
     }
 
+    /**
+     * Get all the server logs.
+     */
     private static void getAllHistory() {
         ArrayList<String> history;
         try {
