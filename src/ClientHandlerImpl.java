@@ -9,19 +9,24 @@
 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 
 
 public class ClientHandlerImpl implements ClientHandler {
     private String clientName;
-    private Boolean kicked = false;
+    private SimpleBooleanProperty kicked;
     private ObservableList<String> messageList;
     private ObservableList<String> userList;
     
-    public ClientHandlerImpl(String name, ObservableList<String> mList, ObservableList<String> uList){
+    public ClientHandlerImpl(String name, ObservableList<String> mList, ObservableList<String> uList, SimpleBooleanProperty isKicked){
         clientName = name;
         messageList = mList;
         userList = uList;
+        kicked = isKicked;
     }
 
     @Override
@@ -36,11 +41,11 @@ public class ClientHandlerImpl implements ClientHandler {
 
     @Override
     public void kickClient() throws RemoteException {
-        kicked = true;
         messageList.add("You have been kicked by the server.");
+        kicked.set(true);
     }
     
-    public Boolean isKicked(){
+    public SimpleBooleanProperty isKicked(){
         return kicked;
     }    
 

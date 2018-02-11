@@ -17,6 +17,7 @@ import java.rmi.RemoteException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -147,9 +148,11 @@ public class ServerHandlerImpl implements ServerHandler {
     }
     
     private void addUser(ClientHandler client){
-        for (ClientHandler c : clientList){
+        for (Iterator<ClientHandler> it = clientList.iterator(); it.hasNext();) {
+            ClientHandler c = it.next();
             if (c != client){
                 try {
+                    System.out.println("Adding " + client.getUsername() + " to " + c.getUsername());
                     c.addUserToList(client.getUsername());
                 } catch (RemoteException ex) {
                     Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);

@@ -85,6 +85,7 @@ public class ChatServer {
             System.out.println("Unabled to open log file!");
             System.exit(1);
         } catch (Exception e) {
+            // TODO: log errors into log file instead of outputing to stdout
             System.err.println("Error on server :" + e) ;
             e.printStackTrace();
         }
