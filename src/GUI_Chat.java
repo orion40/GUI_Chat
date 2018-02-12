@@ -68,7 +68,6 @@ public class GUI_Chat extends Application {
     private static TextField chatPromptText;
 
     private static ObservableList<String> messagesList;
-    private static ObservableList<String> userList;
     private static SimpleBooleanProperty isKicked;
 
     private static ArrayList<String> clientMessageHistory;
@@ -165,31 +164,6 @@ public class GUI_Chat extends Application {
         return menuBar;
     }
 
-    private static BorderPane createChatUserListPane() {
-        BorderPane chatUserListPane = new BorderPane();
-        chatUserListView = new ListView(userList);
-        userList.addListener(new ListChangeListener<String>() {
-            @Override
-            public void onChanged(ListChangeListener.Change<? extends String> c) {
-                while (c.next()) {
-                    if (c.wasAdded()) {
-                        for (String s : c.getAddedSubList()) {
-                            chatUserListView.getItems().add(s);
-                        }
-                    } else if (c.wasRemoved()) {
-                        for (String s : c.getRemoved()) {
-                            chatUserListView.getItems().remove(s);
-                        }
-                    }
-                }
-            }
-        });
-
-        chatUserListPane.setCenter(chatUserListView);
-
-        return chatUserListPane;
-    }
-
     private static BorderPane createChatPromptPane() {
         BorderPane chatPromptPane = new BorderPane();
         Button sendMessageButton = new Button("Send");
@@ -243,6 +217,16 @@ public class GUI_Chat extends Application {
         BorderPane guiChatClient = new BorderPane();
         chatTextArea = new TextArea();
         chatTextArea.setEditable(false);
+        
+        // Add a listener so we scroll to the bottom on new message
+        chatTextArea.textProperty().addListener(new ChangeListener<Object>() {
+            @Override
+            public void changed(ObservableValue<?> observable, Object oldValue,
+                    Object newValue) {
+                chatTextArea.setScrollTop(Double.MAX_VALUE);
+            }
+        });
+
         messagesList.addListener(new ListChangeListener<String>() {
             @Override
             public void onChanged(ListChangeListener.Change<? extends String> c) {
@@ -259,21 +243,20 @@ public class GUI_Chat extends Application {
         isKicked.addListener(new ChangeListener() {
             @Override
             public void changed(ObservableValue ov, Object t, Object t1) {
-//                Alert alert = new Alert(AlertType.ERROR);
-//                alert.setTitle("RMI Chat");
-//                alert.setHeaderText("You have been disconnected.");
-//                alert.setContentText("The server has kicked you.");
-//
-//                alert.show();
-//
-//                returnToLoginScreen();
+                Alert alert = new Alert(AlertType.ERROR);
+                alert.setTitle("RMI Chat");
+                alert.setHeaderText("You have been disconnected.");
+                alert.setContentText("The server has kicked you.");
+
+                alert.show();
+
+                returnToLoginScreen();
             }
 
         });
 
         guiChatClient.setTop(createChatMenuPane());
         guiChatClient.setCenter(chatTextArea);
-        guiChatClient.setRight(createChatUserListPane());
         guiChatClient.setBottom(createChatPromptPane());
 
         return guiChatClient;
@@ -313,9 +296,8 @@ public class GUI_Chat extends Application {
     private static void login() {
         try {
             messagesList = FXCollections.observableArrayList();
-            userList = FXCollections.observableArrayList();
             isKicked = new SimpleBooleanProperty(false);
-            ClientHandlerImpl client = new ClientHandlerImpl(usernameTextField.getText(), messagesList, userList, isKicked);
+            ClientHandlerImpl client = new ClientHandlerImpl(usernameTextField.getText(), messagesList, isKicked);
             client_stub = (ClientHandler) UnicastRemoteObject.exportObject(client, 0);
             // Get remote object reference
             Registry registry = LocateRegistry.getRegistry(serverIPTextField.getText());
@@ -326,14 +308,8 @@ public class GUI_Chat extends Application {
             }
 
             if (serverHandler.connect(client_stub) == true) {
-
-                // Obtaining user list
-                ArrayList<String> users = serverHandler.getConnectedUsers();
                 clientMessageHistory = new ArrayList<>();
 
-                if (!users.isEmpty()) {
-                    userList.addAll(users);
-                }
                 // Creating main interface
                 Scene scene = new Scene(createGUIChatClient());
                 mainStage.setScene(scene);
@@ -378,7 +354,8 @@ public class GUI_Chat extends Application {
                 try {
                     serverHandler.sendMessage(client_stub, input);
                 } catch (RemoteException ex) {
-                    Logger.getLogger(GUI_Chat.class.getName()).log(Level.SEVERE, null, ex);
+                    addToMessages("Error: " + ex.getMessage());
+                    addToMessages("The server is not reachable.");
                 }
             }
             clientMessageHistory.add(input);
@@ -388,6 +365,7 @@ public class GUI_Chat extends Application {
 
     /**
      * Dispatcher for chat commands.
+     *
      * @param input The chat command, a string with a leading '/'
      */
     private static void executeCommand(String input) {
@@ -418,6 +396,7 @@ public class GUI_Chat extends Application {
 
     /**
      * Add a message to the client message list.
+     *
      * @param s The message to add.
      */
     private static void addToMessages(String s) {
@@ -426,7 +405,8 @@ public class GUI_Chat extends Application {
 
     /**
      * Add a message list to the client message list.
-     * @param list 
+     *
+     * @param list
      */
     private static void addToMessages(ArrayList<String> list) {
         messagesList.addAll(list);
@@ -472,7 +452,7 @@ public class GUI_Chat extends Application {
             users = serverHandler.getConnectedUsers();
 
             if (!users.isEmpty()) {
-                userList.addAll(users);
+                addToMessages(users);
             }
 
         } catch (RemoteException ex) {

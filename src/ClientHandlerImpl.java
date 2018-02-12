@@ -16,12 +16,10 @@ public class ClientHandlerImpl implements ClientHandler {
     private final String clientName;
     private final SimpleBooleanProperty kicked;
     private final ObservableList<String> messageList;
-    private final ObservableList<String> userList;
     
-    public ClientHandlerImpl(String name, ObservableList<String> mList, ObservableList<String> uList, SimpleBooleanProperty isKicked){
+    public ClientHandlerImpl(String name, ObservableList<String> mList, SimpleBooleanProperty isKicked){
         clientName = name;
         messageList = mList;
-        userList = uList;
         kicked = isKicked;
     }
 
@@ -62,27 +60,5 @@ public class ClientHandlerImpl implements ClientHandler {
      */
     public SimpleBooleanProperty isKicked() throws RemoteException{
         return kicked;
-    }    
-
-    /**
-     * Add an username to the current list of users.
-     * @param s the username to add.
-     * @throws RemoteException when the client could not be joined.
-     */
-    @Override
-    public void addUserToList(String s) throws RemoteException {
-        // FIXME: error when adding to list when 2 clients are connected
-        System.out.println("Adding " + s);
-        userList.add(s);
-    }
-
-    /**
-     * Remove an username from the current list of users.
-     * @param s the username to delete.
-     * @throws RemoteException when the client could not be joined.
-     */
-    @Override
-    public void deleteUserFromList(String s) throws RemoteException {
-        userList.remove(s);
     }
 }

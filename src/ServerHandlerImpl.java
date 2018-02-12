@@ -176,34 +176,10 @@ public class ServerHandlerImpl implements ServerHandler {
     }
     
     private void addUser(ClientHandler client){
-        for (Iterator<ClientHandler> it = clientList.iterator(); it.hasNext();) {
-            ClientHandler c = it.next();
-            if (c != client){
-                try {
-                    System.out.println("Adding " + client.getUsername() + " to " + c.getUsername());
-                    c.addUserToList(client.getUsername());
-                } catch (RemoteException ex) {
-                    Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
-                    System.out.println("Unable to join client, deleting him...");
-                    clientList.remove(c);
-                }
-            }
-        }
-        
         clientList.add(client);
     }
     
     private void removeUser (ClientHandler client){
-        for (ClientHandler c : clientList){
-            try {
-                c.deleteUserFromList(client.getUsername());
-            } catch (RemoteException ex) {
-                Logger.getLogger(ServerHandlerImpl.class.getName()).log(Level.SEVERE, null, ex);
-                System.out.println("Unable to join client, deleting him...");
-                clientList.remove(c);
-            }
-        }
-        
         clientList.remove(client);
     }
 }
