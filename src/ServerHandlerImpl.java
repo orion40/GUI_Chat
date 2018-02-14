@@ -8,6 +8,7 @@
 
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -24,13 +25,13 @@ public class ServerHandlerImpl implements ServerHandler {
     static private ArrayList<ClientHandler> clientList;
     static private ArrayList<String> messageList;
     static private FileWriter logFileWriter;
-    static private FileReader logFileReader;
+    static private File logFile;
     
-    public ServerHandlerImpl(ArrayList<ClientHandler> clients, ArrayList<String> messages, FileWriter fileWriter, FileReader fileReader) {
+    public ServerHandlerImpl(ArrayList<ClientHandler> clients, ArrayList<String> messages, FileWriter fileWriter, File file) {
         clientList = clients;
         messageList = messages;
         logFileWriter = fileWriter;
-        logFileReader = fileReader;
+        logFile = file;
     }
     
     /**
@@ -160,7 +161,8 @@ public class ServerHandlerImpl implements ServerHandler {
         // FIXME : plusieurs getAllHistory renvoie un historique vide
         ArrayList<String> fullHistory = new ArrayList<>();
         try {
-            logFileReader.reset();
+            logFileWriter.flush();
+            FileReader logFileReader = new FileReader(logFile);
             BufferedReader b = new BufferedReader(logFileReader);
             String line;
             while ((line = b.readLine()) != null){

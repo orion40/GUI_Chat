@@ -39,7 +39,6 @@ public class ChatServer {
             // Create log file
             File serverLogs = new File("chat.log");
             FileWriter serverLogsWriter = new FileWriter(serverLogs, true);
-            FileReader serverLogsReader = new FileReader(serverLogs);
             String openMessage = "[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + "Server started.\n";
             serverLogsWriter.write(openMessage);
             
@@ -58,14 +57,13 @@ public class ChatServer {
                 try {
                     serverLogsWriter.write("[" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME) + "] " + "Server shutdown.\n");
                     serverLogsWriter.close();
-                    serverLogsReader.close();
                 } catch (IOException ex) {
                     System.out.println("Error closing log file.");
                 }
             }));
             
             // Create a Hello remote object
-            ServerHandlerImpl serverHandler = new ServerHandlerImpl(clientList, messageList, serverLogsWriter, serverLogsReader);
+            ServerHandlerImpl serverHandler = new ServerHandlerImpl(clientList, messageList, serverLogsWriter, serverLogs);
             ServerHandler serverHandlerStub = (ServerHandler) UnicastRemoteObject.exportObject(serverHandler, 0);
             
             // Register the remote object in RMI registry with a given identifier
